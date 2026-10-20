@@ -1,0 +1,6 @@
+{
+  "appId": "com.slowpage.reader",
+  "appName": "Slowpage",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
