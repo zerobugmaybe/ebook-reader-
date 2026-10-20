@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1F2748">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>Slowpage – daily reading</title>
+<style>
+:root{
+  --bg:#F3F4F8;--surf:#FFFFFF;--ink:#1F2748;--muted:#5B6382;--line:#D9DCEA;
+  --acc:#F2B134;--onAcc:#1A1F3A;--deep:#1F2748;--onDeep:#F3F4F8;--sage:#6E9A86;--danger:#B73A2C;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#121730;--surf:#1B2243;--ink:#E7E9F5;--muted:#9AA1C4;--line:#2D3560;--deep:#242D5C;--danger:#FF8A7A}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,label:focus-within{outline:3px solid var(--acc);outline-offset:2px}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.sm{width:18px;height:18px}.ic.fill{fill:currentColor;stroke:none}.ic.lg{width:28px;height:28px}
+
+/* ---------- Views and bottom tabs ---------- */
+.view{max-width:640px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 18px 120px}
+.vhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.vhead h1{font-family:var(--serif);font-size:30px;letter-spacing:-.5px;margin:0}
+.chip-streak{display:inline-flex;align-items:center;gap:6px;background:var(--surf);border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:14px;font-weight:600}
+.chip-streak svg{color:#E8742A}
+#tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:var(--surf);border-top:1px solid var(--line);padding:6px 6px max(8px,env(safe-area-inset-bottom))}
+#tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:4px;font-size:12px;font-weight:600;color:var(--muted)}
+#tabs .pill{width:58px;height:32px;border-radius:16px;display:grid;place-items:center}
+#tabs button[aria-current=page]{color:var(--ink)}
+#tabs button[aria-current=page] .pill{background:var(--acc);color:var(--onAcc)}
+
+/* ---------- Buttons ---------- */
+.btn{border:0;border-radius:14px;padding:12px 18px;font-weight:600;font-size:16px;min-height:50px;display:inline-flex;align-items:center;justify-content:center;gap:9px}
+.btn.main{background:var(--acc);color:var(--onAcc)}
+.btn.alt{background:transparent;border:1.5px solid currentColor}
+.btn.quiet{background:var(--surf);border:1px solid var(--line)}
+.btn.wide{width:100%}
+.linkbtn{background:none;border:0;padding:8px 2px;font-weight:600;text-decoration:underline;text-underline-offset:3px;display:inline-flex;gap:6px;align-items:center}
+
+/* ---------- Today ---------- */
+.today{background:var(--deep);color:var(--onDeep);border-radius:24px;padding:22px 20px 20px}
+.today h2{font-family:var(--serif);font-size:32px;line-height:1.1;margin:0 0 6px;letter-spacing:-.4px}
+.today .meta{opacity:.8;font-size:15px;margin:0 0 14px}
+.today .peek{font-family:var(--serif);font-size:17px;line-height:1.5;opacity:.92;margin:0 0 18px;border-left:3px solid var(--acc);padding-left:12px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions .btn{width:100%}
+.strip-title{margin:20px 0 8px;font-size:14px;opacity:.8}
+.strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(16px,1fr));gap:4px}
+.strip.dense{grid-template-columns:repeat(auto-fill,minmax(9px,1fr));gap:3px}
+.tile{height:16px;border-radius:4px;border:0;padding:0;background:rgba(255,255,255,.16)}
+.strip.dense .tile{height:11px;border-radius:3px}
+.tile.done{background:var(--acc)}
+.tile.now{background:transparent;box-shadow:inset 0 0 0 2px var(--acc)}
+.legend{display:flex;gap:14px;font-size:12px;opacity:.8;margin-top:8px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.remline{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;margin:14px 2px 0}
+
+.steps{background:var(--surf);border:1px solid var(--line);border-radius:22px;padding:22px 18px;text-align:left}
+.steps h2{font-family:var(--serif);font-size:26px;margin:0 0 4px}
+.steps>p{color:var(--muted);margin:0 0 16px;line-height:1.45}
+.step{display:flex;gap:14px;align-items:center;padding:10px 0}
+.step .sb{width:44px;height:44px;border-radius:14px;background:var(--acc);color:var(--onAcc);display:grid;place-items:center;flex:none}
+.step b{display:block}.step span{color:var(--muted);font-size:14px}
+.stack{display:grid;gap:10px;margin-top:14px}
+
+/* ---------- Library ---------- */
+.lib{display:grid;gap:12px;margin-top:18px}
+.bk{background:var(--surf);border:1px solid var(--line);border-radius:18px;padding:12px}
+.bk.active{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.bk .top{display:flex;gap:14px;align-items:center}
+.spine{width:12px;align-self:stretch;min-height:56px;border-radius:6px;flex:none}
+.bt{flex:1;min-width:0}
+.bt b{display:block;font-family:var(--serif);font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt span{font-size:13px;color:var(--muted)}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--sage)}
+.bk .acts{display:flex;gap:8px;margin-top:12px}
+.bk .acts .btn{min-height:42px;padding:8px 14px;font-size:14px;flex:1}
+.badge{display:inline-flex;align-items:center;gap:5px;background:var(--acc);color:var(--onAcc);font-size:12px;font-weight:700;padding:3px 9px;border-radius:10px;margin-bottom:4px}
+.status{margin-top:14px;font-size:14px;color:var(--muted);min-height:20px;line-height:1.4}
+.status.err{color:var(--danger)}
+.addrow{display:grid;gap:10px;margin-top:4px}
+.addrow input{display:none}
+.fmt{font-size:13px;color:var(--muted);margin:4px 2px 0}
+
+/* ---------- Cards / rows (Plan + Settings) ---------- */
+.card{background:var(--surf);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px}
+.card h2{font-family:var(--serif);font-size:20px;margin:0 0 12px;display:flex;align-items:center;gap:10px}
+.row{margin:0 0 20px}.row:last-child{margin-bottom:0}
+.lbl{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;margin-bottom:10px;gap:10px}
+.lbl .lt{display:inline-flex;align-items:center;gap:8px}
+.lbl output{color:var(--muted);font-weight:500;font-size:14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1.5px solid var(--line);background:transparent;border-radius:12px;padding:9px 14px;min-height:44px;display:inline-flex;align-items:center;gap:7px;font-weight:500}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--surf);border-color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--acc);height:34px}
+select,input[type=time]{width:100%;font:inherit;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);min-height:48px}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.sw{border-radius:14px;border:2px solid var(--line);padding:8px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:600}
+.sw b{font-family:var(--serif);font-size:20px;line-height:1.1}
+.sw[aria-pressed=true]{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+.hint{font-size:13px;color:var(--muted);line-height:1.45;margin:8px 0 0}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.switch label{font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.switch input{width:52px;height:30px;accent-color:var(--acc)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{flex:none;width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);background:transparent;font-family:var(--serif);font-weight:700}
+
+/* ---------- Themed surfaces (reader + preview) ---------- */
+.themed{--rf:var(--serif);background:var(--bg);color:var(--ink)}
+.themed[data-theme=paper]{--bg:#FAFAF8;--ink:#23262D;--muted:#6A6F7B;--line:#E1E2E6;--rule:#9A9EA8;--hl:rgba(217,149,27,.16);--acc:#D9951B}
+.themed[data-theme=sepia]{--bg:#F0E4CB;--ink:#40301F;--muted:#7C694F;--line:#DFCFAE;--rule:#A38C66;--hl:rgba(150,90,20,.16);--acc:#C27F12}
+.themed[data-theme=mist]{--bg:#DCE6DF;--ink:#1D2A24;--muted:#52665B;--line:#C3D1C8;--rule:#7E9788;--hl:rgba(40,110,80,.16);--acc:#2F7F5C}
+.themed[data-theme=dusk]{--bg:#232B45;--ink:#D9DEF0;--muted:#98A1C4;--line:#38426A;--rule:#6A74A0;--hl:rgba(242,177,52,.16);--acc:#F2B134}
+.themed[data-theme=night]{--bg:#0D1014;--ink:#B4B9C4;--muted:#767C89;--line:#20252D;--rule:#444B57;--hl:rgba(242,177,52,.14);--acc:#F2B134}
+.themed[data-font=sans]{--rf:var(--sans)}
+.themed[data-font=mono]{--rf:ui-monospace,Menlo,Consolas,monospace}
+.pg{--fs:21px;--lh:1.7;--ps:.9;--mx:28px;--al:left;margin:0 auto;max-width:760px;padding:26px var(--mx);font-family:var(--rf);border:0}
+.pg.b-line{border:1.5px solid var(--rule)}
+.pg.b-double{border:6px double var(--rule)}
+.pg.b-round{border:1.5px solid var(--rule);border-radius:26px}
+.pg p,.pg h2{margin:0 0 calc(var(--ps)*1em);font-size:var(--fs);line-height:var(--lh);text-align:var(--al);hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word}
+.pg h2{font-size:calc(var(--fs)*1.35);line-height:1.25;text-align:left;margin-top:.4em;letter-spacing:-.2px}
+.pg p:last-child{margin-bottom:0}
+.pg .speaking{background:var(--hl);box-shadow:-10px 0 0 var(--hl),10px 0 0 var(--hl);border-radius:4px}
+#pvWrap{border-radius:18px;padding:10px;margin-bottom:14px;border:1px solid var(--line)}
+#pvWrap .pg{padding-top:18px;padding-bottom:18px}
+
+/* ---------- Reader ---------- */
+#reader{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;z-index:10}
+#reader .sheet{background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,var(--ink) 8%);border-color:var(--line)}
+#reader select{background:var(--bg)}
+#reader .chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#reader .sw{color:inherit}
+.rhead{display:flex;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top)) 10px 6px}
+.rhead .ttl{flex:1;min-width:0;text-align:center}
+.rhead b{display:block;font-family:var(--serif);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rhead span{font-size:13px;color:var(--muted)}
+.backbtn{background:none;border:0;display:inline-flex;align-items:center;gap:2px;padding:8px 10px 8px 4px;min-height:44px;border-radius:12px;font-weight:600;color:var(--ink)}
+.rhead .sp{width:74px}
+.prog{height:3px;background:var(--line)}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+#scroll{flex:1;overflow:auto;padding:14px 12px 28px;-webkit-overflow-scrolling:touch}
+.endcard{margin:34px auto 6px;text-align:center;font-family:var(--sans)}
+.endcard p{font-family:var(--sans)!important;font-size:15px!important;color:var(--muted);text-align:center!important}
+.endcard .btn{background:var(--acc);color:#1A1F3A}
+.ainfo{text-align:center;font-size:13px;color:var(--muted);padding:6px 12px 0;border-top:1px solid var(--line)}
+.rbar{display:flex;align-items:flex-end;justify-content:space-around;padding:4px 4px max(8px,env(safe-area-inset-bottom))}
+.rb{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;padding:6px 4px;border-radius:12px;font-size:11.5px;font-weight:600;color:var(--ink)}
+.rb .box{width:44px;height:36px;display:grid;place-items:center;font-weight:800;font-size:15px}
+.rb.main .box{width:60px;height:60px;border-radius:50%;background:var(--acc);color:#1A1F3A}
+#doneTop .box{color:var(--acc)}
+.toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-size:15px;z-index:60;max-width:88vw;opacity:0;pointer-events:none;transition:opacity .2s;text-align:center}
+.toast.show{opacity:1}
+
+/* ---------- Sheet (reader text settings) ---------- */
+.scrim{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,12,25,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:640px;margin:0 auto;background:var(--surf);color:var(--ink);
+  border-radius:22px 22px 0 0;border:1px solid var(--line);max-height:70vh;overflow:auto;padding:8px 18px max(22px,env(safe-area-inset-bottom));
+  transform:translateY(110%);transition:transform .25s ease}
+.sheet.open{transform:none}
+.sheet .sh{display:flex;align-items:center;justify-content:space-between;margin:2px 0 14px}
+.sheet h4{font-family:var(--serif);font-size:21px;margin:0}
+.xbtn{background:none;border:0;display:inline-flex;align-items:center;gap:6px;font-weight:600;padding:8px;min-height:44px;border-radius:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<!-- Icon set -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-today" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14.5 5.5l4-1.2 3 14.5-4 1z"/></symbol>
+  <symbol id="i-plan" viewBox="0 0 24 24"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 3h16z"/><path d="M10 21a2 2 0 004 0"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/></symbol>
+  <symbol id="i-read" viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 012 2v12a2 2 0 00-2-2H4zM20 5h-6a2 2 0 00-2 2v12a2 2 0 012-2h6z"/></symbol>
+  <symbol id="i-listen" viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0116 0v2M4 14h3v6H5a1 1 0 01-1-1zM20 14h-3v6h2a1 1 0 001-1z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 5l-9 7 9 7zM6 5v14"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM18 5v14"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 .5 1.5 1.5 2 2 2-.5-3 0-6 1-8z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-sample" viewBox="0 0 24 24"><path d="M12 3l2.2 5.3 5.8.5-4.4 3.8 1.4 5.6L12 15.2 7 18.2l1.4-5.6L4 8.8l5.8-.5z"/></symbol>
+  <symbol id="i-textsize" viewBox="0 0 24 24"><path d="M3 19l5-13 5 13M5 14h6M15 19l3-8 3 8M16 16.5h4"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 100 18c1.3 0 2-.8 2-1.7 0-1.2-1-1.4-1-2.5 0-1 .8-1.8 1.9-1.8H17a4 4 0 004-4c0-4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/></symbol>
+  <symbol id="i-type" viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></symbol>
+  <symbol id="i-lines" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 4v16M2.5 5.5L4 4l1.5 1.5M2.5 18.5L4 20l1.5-1.5"/></symbol>
+  <symbol id="i-para" viewBox="0 0 24 24"><path d="M13 4v16M17 4v16M13 4H9a4 4 0 000 8h4"/></symbol>
+  <symbol id="i-margins" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M16 4v16"/></symbol>
+  <symbol id="i-border" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><rect x="7" y="7" width="10" height="10" rx="1.5"/></symbol>
+  <symbol id="i-align" viewBox="0 0 24 24"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></symbol>
+  <symbol id="i-voice" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+</defs></svg>
+
+<!-- ================= TABS: Today / Library / Plan / Settings ================= -->
+<main id="views">
+  <section class="view" id="v-today">
+    <div class="vhead"><h1>Today</h1><span class="chip-streak" id="streak" hidden></span></div>
+    <div id="todayWrap"></div>
+  </section>
+
+  <section class="view" id="v-library" hidden>
+    <div class="vhead"><h1>Library</h1></div>
+    <div class="addrow">
+      <label class="btn main wide" tabindex="0" id="addLbl">
+        <svg class="ic"><use href="#i-upload"/></svg> Add a book from your phone
+        <input type="file" id="file" accept=".pdf,.epub,.txt,.md,.html,.htm,application/pdf,application/epub+zip,text/plain">
+      </label>
+      <p class="fmt">Works with PDF, EPUB, TXT, MD and HTML files.</p>
+      <button class="btn quiet wide" id="sampleBtn"><svg class="ic"><use href="#i-sample"/></svg> Try a short sample book</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <div class="lib" id="lib"></div>
+  </section>
+
+  <section class="view" id="v-plan" hidden>
+    <div class="vhead"><h1>Plan</h1></div>
+    <div class="card">
+      <h2><svg class="ic"><use href="#i-clock"/></svg>Reading time each day</h2>
+      <div class="chips" id="minChips"></div>
+      <p class="hint" id="planHint"></p>
+    </div>
+    <div class="card">
+      <h2><svg class="ic"><use href="#i-read"/></svg>How do you want to start?</h2>
+      <div class="chips" id="modeChips"></div>
+      <p class="hint">This decides which button is highlighted on the Today screen. You can always pick the other one.</p>
+    </div>
+    <div class="card">
+      <h2><svg class="ic"><use href="#i-plan"/></svg>Daily reminder</h2>
+      <div class="row"><div class="switch"><label for="remOn">Remind me every day</label><input type="checkbox" id="remOn"></div></div>
+      <div class="row"><div class="lbl"><label for="remTime" class="lt"><svg class="ic sm"><use href="#i-clock"/></svg>Reminder time</label></div>
+        <input type="time" id="remTime"></div>
+      <p class="hint" id="remHint"></p>
+      <div class="stack"><button class="btn quiet wide" id="icsBtn"><svg class="ic"><use href="#i-cal"/></svg> Add to my calendar</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-settings" hidden>
+    <div class="vhead"><h1>Settings</h1></div>
+    <div id="pvWrap" class="themed" data-theme="paper" data-font="serif">
+      <article class="pg" id="preview">
+        <h2>Preview</h2>
+        <p>Reading should feel easy. Change anything below and this page updates right away.</p>
+        <p>A second paragraph shows the space between paragraphs and lines.</p>
+      </article>
+    </div>
+    <div class="card" id="ctrlHome">
+      <div id="displayControls">
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-palette"/></svg>Page colour</span></div><div class="swatches" id="swatches"></div></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-type"/></svg>Font</span></div><div class="chips" id="fontChips"></div></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-textsize"/></svg>Text size</span><output id="fsO"></output></div>
+          <div class="stepper"><button id="fsMinus" aria-label="Smaller text">A−</button><input type="range" id="fs" min="15" max="36" step="1" aria-label="Text size"><button id="fsPlus" aria-label="Bigger text">A+</button></div></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-lines"/></svg>Line spacing</span><output id="lhO"></output></div><input type="range" id="lh" min="1.2" max="2.4" step="0.05" aria-label="Line spacing"></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-para"/></svg>Paragraph spacing</span><output id="psO"></output></div><input type="range" id="ps" min="0" max="2.4" step="0.1" aria-label="Paragraph spacing"></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-margins"/></svg>Side margins</span><output id="mxO"></output></div><input type="range" id="mx" min="6" max="90" step="2" aria-label="Side margins"></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-border"/></svg>Page border</span></div><div class="chips" id="borderChips"></div></div>
+        <div class="row"><div class="lbl"><span class="lt"><svg class="ic sm"><use href="#i-align"/></svg>Text alignment</span></div><div class="chips" id="alignChips"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2><svg class="ic"><use href="#i-voice"/></svg>Listening</h2>
+      <div class="row"><div class="lbl"><label for="voice" class="lt">Voice</label></div><select id="voice"></select>
+        <p class="hint">Voices come from your phone. Add more in your phone's language or text-to-speech settings.</p></div>
+      <div class="row"><div class="lbl"><label for="rateSel" class="lt">Speaking speed</label></div><select id="rateSel"></select></div>
+      <div class="row"><button class="btn quiet wide" id="testVoice"><svg class="ic"><use href="#i-play"/></svg> Test the voice</button></div>
+    </div>
+  </section>
+</main>
+
+<nav id="tabs" aria-label="Main">
+  <button data-tab="today" aria-current="page"><span class="pill"><svg class="ic"><use href="#i-today"/></svg></span>Today</button>
+  <button data-tab="library"><span class="pill"><svg class="ic"><use href="#i-library"/></svg></span>Library</button>
+  <button data-tab="plan"><span class="pill"><svg class="ic"><use href="#i-plan"/></svg></span>Plan</button>
+  <button data-tab="settings"><span class="pill"><svg class="ic"><use href="#i-settings"/></svg></span>Settings</button>
+</nav>
+
+<!-- ================= READER ================= -->
+<section id="reader" class="themed" hidden data-theme="paper" data-font="serif">
+  <div class="rhead">
+    <button class="backbtn" id="backBtn" aria-label="Back to Today"><svg class="ic"><use href="#i-back"/></svg>Back</button>
+    <div class="ttl"><b id="rTitle"></b><span id="rSub"></span></div>
+    <div class="sp"></div>
+  </div>
+  <div class="prog"><i id="progBar"></i></div>
+  <div id="scroll"><article class="pg" id="page"></article></div>
+  <div class="ainfo" id="audioInfo">Tap Listen to hear this part read aloud</div>
+  <div class="rbar">
+    <button class="rb" id="prevP" aria-label="Previous paragraph"><span class="box"><svg class="ic fill"><use href="#i-prev"/></svg></span>Previous</button>
+    <button class="rb main" id="playBtn"><span class="box" id="playIc"></span><span id="playLbl">Listen</span></button>
+    <button class="rb" id="nextP" aria-label="Next paragraph"><span class="box"><svg class="ic fill"><use href="#i-next"/></svg></span>Next</button>
+    <button class="rb" id="spdBtn" aria-label="Change speed"><span class="box" id="spdTxt">1×</span>Speed</button>
+    <button class="rb" id="aaBtn" aria-label="Text settings"><span class="box"><svg class="ic"><use href="#i-textsize"/></svg></span>Text</button>
+    <button class="rb" id="doneTop" aria-label="Mark as read"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span>Done</button>
+  </div>
+
+  <div class="scrim" id="scrimR"></div>
+  <div class="sheet" id="displaySheet" role="dialog" aria-label="Text settings">
+    <div class="sh"><h4>Text settings</h4><button class="xbtn" id="closeSheet"><svg class="ic"><use href="#i-x"/></svg>Close</button></div>
+    <div id="sheetBody"></div>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* =====================================================================
+   Storage: IndexedDB when available, in-memory otherwise.
+   ===================================================================== */
+const kv=(()=>{
+  const mem=new Map();let dbp=null;
+  function open(){
+    if(dbp)return dbp;
+    dbp=new Promise(res=>{
+      try{
+        const r=indexedDB.open('slowpage',1);
+        r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+        r.onsuccess=()=>res(r.result);
+        r.onerror=()=>res(null);
+      }catch(e){res(null)}
+    });
+    return dbp;
+  }
+  const tx=async(mode,fn)=>{
+    const db=await open();if(!db)return null;
+    return new Promise(res=>{
+      try{
+        const t=db.transaction('kv',mode);const out=fn(t.objectStore('kv'));
+        t.oncomplete=()=>res(out&&'result' in out?out.result:true);
+        t.onerror=()=>res(null);t.onabort=()=>res(null);
+      }catch(e){res(null)}
+    });
+  };
+  return{
+    async get(k){const v=await tx('readonly',s=>s.get(k));return v===null?mem.get(k):v},
+    async set(k,v){mem.set(k,v);await tx('readwrite',s=>s.put(v,k))},
+    async del(k){mem.delete(k);await tx('readwrite',s=>s.delete(k))},
+    async keys(){
+      const db=await open();
+      if(!db)return[...mem.keys()];
+      const ks=await tx('readonly',s=>s.getAllKeys());
+      return ks||[...mem.keys()];
+    }
+  };
+})();
+
+/* ===================== State & helpers ===================== */
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const WPM=200;
+const COLORS=['#F2B134','#6E9A86','#7C8BD6','#D98FA8','#5FA8C9'];
+const SPEEDS=[0.7,0.85,1,1.15,1.3,1.5,1.75];
+let S={theme:'paper',font:'serif',fs:21,lh:1.7,ps:0.9,mx:28,border:'none',align:'left',rate:1,voice:'',mode:'read'};
+let R={on:false,time:'08:00',last:''};
+let books=[],activeId=null,cur=null,curPart=0,tab='today';
+const today=()=>new Date().toLocaleDateString('en-CA');
+const wc=t=>(t.trim().match(/\S+/g)||[]).length;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ico=(n,c='')=>`<svg class="ic ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const fmtTime=hm=>{const[h,m]=hm.split(':').map(Number);return new Date(2000,0,1,h,m).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})};
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3000)}
+function setStatus(m,err){const s=$('#status');s.textContent=m||'';s.classList.toggle('err',!!err)}
+const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const LN=()=>window.Capacitor?.Plugins?.LocalNotifications;
+
+/* ===================== Splitting a book into daily parts ===================== */
+function splitLong(paras,max=170){
+  const out=[];
+  for(const p of paras){
+    if(p.t==='h'||wc(p.x)<=max){out.push(p);continue}
+    const sents=p.x.match(/[^.!?]+[.!?]+["”')\]]*\s*|[^.!?]+$/g)||[p.x];
+    let buf='';
+    for(const s of sents){
+      if(wc(buf+s)>max&&buf){out.push({t:'p',x:buf.trim()});buf=s}else buf+=s;
+    }
+    if(buf.trim())out.push({t:'p',x:buf.trim()});
+  }
+  return out.map(p=>({...p,w:wc(p.x)}));
+}
+function makeParts(paras,target){
+  const parts=[];let start=0,count=0;
+  for(let i=0;i<paras.length;i++){
+    const w=paras[i].w;
+    const startsChapter=paras[i].t==='h'&&count>=target*0.5;
+    if(count>0&&(count+w>target*1.25||startsChapter)){
+      let cut=i;
+      if(paras[i-1].t==='h'&&i-1>start)cut=i-1;
+      parts.push([start,cut]);start=cut;
+      count=0;for(let k=cut;k<i;k++)count+=paras[k].w;
+    }
+    count+=w;
+  }
+  if(start<paras.length)parts.push([start,paras.length]);
+  return parts.length?parts:[[0,paras.length]];
+}
+const partWords=(b,i)=>{let n=0;const[s,e]=b.parts[i];for(let k=s;k<e;k++)n+=b.paras[k].w;return n};
+const partMin=(b,i)=>Math.max(1,Math.round(partWords(b,i)/WPM));
+const saveBook=b=>kv.set('book:'+b.id,b);
+const saveMeta=()=>kv.set('meta',{activeId});
+
+function addBook(title,author,paras,target){
+  const ps=splitLong(paras);
+  const b={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,author,paras:ps,
+    target:target||10*WPM,current:0,log:[],lastDone:'',added:Date.now()};
+  b.parts=makeParts(ps,b.target);
+  books.push(b);activeId=b.id;saveBook(b);saveMeta();renderAll();
+  return b;
+}
+function replan(b,target){
+  const finished=b.current>=b.parts.length;
+  const startPara=b.parts[Math.min(b.current,b.parts.length-1)][0];
+  b.target=target;b.parts=makeParts(b.paras,target);
+  if(finished)b.current=b.parts.length;
+  else b.current=Math.max(0,b.parts.findIndex(([s,e])=>startPara>=s&&startPara<e));
+  saveBook(b);
+}
+
+/* ===================== File parsers ===================== */
+const loaded={};
+function loadScript(urls){
+  const key=urls.join('|');
+  return loaded[key]||(loaded[key]=(async()=>{
+    for(const u of urls){
+      try{await new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=rej;document.head.appendChild(s)});return}catch(e){}
+    }
+    delete loaded[key];throw new Error('Could not load the file reader. Check your connection and try again.');
+  })());
+}
+const CDN='https://cdnjs.cloudflare.com/ajax/libs/';
+const PDF_JS=['lib/pdf.min.js',CDN+'pdf.js/3.11.174/pdf.min.js'];
+const PDF_WORKER=['lib/pdf.worker.min.js',CDN+'pdf.js/3.11.174/pdf.worker.min.js'];
+const ZIP_JS=['lib/jszip.min.js',CDN+'jszip/3.10.1/jszip.min.js'];
+
+async function parsePdf(buf){
+  await loadScript(PDF_JS);
+  let set=false;
+  for(const u of PDF_WORKER){
+    try{const code=await (await fetch(u)).text();if(code.length<1000)continue;
+      pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));set=true;break}catch(e){}
+  }
+  if(!set)pdfjsLib.GlobalWorkerOptions.workerSrc=PDF_WORKER[PDF_WORKER.length-1];
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let meta={};try{meta=(await pdf.getMetadata()).info||{}}catch(e){}
+  const paras=[];let carry='';
+  const med=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)]};
+  for(let p=1;p<=pdf.numPages;p++){
+    setStatus(`Reading page ${p} of ${pdf.numPages}…`);
+    const tc=await (await pdf.getPage(p)).getTextContent();
+    const lines=[];let c=null;
+    for(const it of tc.items){
+      if(!it.str)continue;
+      const y=it.transform[5],h=it.height||10;
+      if(c&&Math.abs(c.y-y)<h*0.5)c.s+=it.str;
+      else{c={y,s:it.str};lines.push(c)}
+    }
+    const ls=lines.map(l=>({y:l.y,s:l.s.replace(/\s+/g,' ').trim()})).filter(l=>l.s&&!/^\d{1,4}$/.test(l.s));
+    const gaps=[];for(let i=1;i<ls.length;i++){const g=ls[i-1].y-ls[i].y;if(g>0)gaps.push(g)}
+    const lead=med(gaps)||14;
+    let buf='';const pageParas=[];
+    ls.forEach((l,i)=>{
+      const gap=i?ls[i-1].y-l.y:0;
+      if(i&&gap>lead*1.55){if(buf)pageParas.push(buf);buf=l.s;return}
+      if(!buf)buf=l.s;
+      else if(/[A-Za-z]-$/.test(buf)&&/^[a-z]/.test(l.s))buf=buf.slice(0,-1)+l.s;
+      else buf+=' '+l.s;
+    });
+    if(buf)pageParas.push(buf);
+    if(carry&&pageParas.length){pageParas[0]=carry+' '+pageParas[0];carry=''}
+    else if(carry){pageParas.push(carry);carry=''}
+    if(pageParas.length&&!/[.!?:”"')\]]$/.test(pageParas[pageParas.length-1]))carry=pageParas.pop();
+    pageParas.forEach(x=>paras.push({t:headingLike(x)?'h':'p',x}));
+  }
+  if(carry)paras.push({t:'p',x:carry});
+  return{title:meta.Title,author:meta.Author,paras};
+}
+function headingLike(x){return x.length<70&&/^(chapter|part|book|section|prologue|epilogue|preface|introduction)\b/i.test(x)}
+
+async function parseEpub(buf){
+  await loadScript(ZIP_JS);
+  const zip=await JSZip.loadAsync(buf);
+  const read=async p=>{const f=zip.file(p);return f?await f.async('string'):null};
+  const xml=s=>new DOMParser().parseFromString(s,'application/xml');
+  const cont=xml(await read('META-INF/container.xml'));
+  const opfPath=cont.querySelector('rootfile').getAttribute('full-path');
+  const opf=xml(await read(opfPath));
+  const base=opfPath.includes('/')?opfPath.slice(0,opfPath.lastIndexOf('/')+1):'';
+  const tag=n=>[...opf.getElementsByTagName('*')].find(e=>e.localName===n);
+  const title=tag('title')?.textContent.trim(),author=tag('creator')?.textContent.trim();
+  const man={};opf.querySelectorAll('manifest > item').forEach(i=>man[i.getAttribute('id')]=i);
+  const spine=[...opf.querySelectorAll('spine > itemref')].map(r=>man[r.getAttribute('idref')]).filter(Boolean);
+  const paras=[];let n=0;
+  for(const it of spine){
+    n++;setStatus(`Reading section ${n} of ${spine.length}…`);
+    if((it.getAttribute('properties')||'').includes('nav'))continue;
+    const path=decodeURIComponent(new URL('http://x/'+base+it.getAttribute('href')).pathname.slice(1));
+    const html=await read(path);if(!html)continue;
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    doc.querySelectorAll('script,style,nav').forEach(e=>e.remove());
+    const els=doc.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,pre');
+    if(els.length){
+      els.forEach(el=>{
+        const x=el.textContent.replace(/\s+/g,' ').trim();if(!x)return;
+        paras.push({t:/^H[1-6]$/.test(el.tagName)?'h':'p',x});
+      });
+    }else{
+      (doc.body.textContent||'').split(/\n\s*\n/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean).forEach(x=>paras.push({t:'p',x}));
+    }
+  }
+  return{title,author,paras};
+}
+function parseText(txt,ext){
+  if(ext==='html'||ext==='htm'){
+    const doc=new DOMParser().parseFromString(txt,'text/html');
+    doc.querySelectorAll('script,style').forEach(e=>e.remove());
+    const paras=[];
+    doc.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li').forEach(el=>{
+      const x=el.textContent.replace(/\s+/g,' ').trim();if(x)paras.push({t:/^H/.test(el.tagName)?'h':'p',x});
+    });
+    return{title:doc.title,paras};
+  }
+  const paras=txt.replace(/\r/g,'').split(/\n\s*\n/).map(s=>s.replace(/\n/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean)
+    .map(x=>({t:(headingLike(x)||/^#{1,3}\s/.test(x))?'h':'p',x:x.replace(/^#{1,3}\s+/,'')}));
+  return{paras};
+}
+async function importFile(file){
+  setStatus(`Opening ${file.name}…`);
+  try{
+    const ext=file.name.split('.').pop().toLowerCase();
+    const buf=await file.arrayBuffer();
+    let r;
+    if(ext==='pdf')r=await parsePdf(buf);
+    else if(ext==='epub')r=await parseEpub(buf);
+    else r=parseText(new TextDecoder().decode(buf),ext);
+    if(!r.paras.length)throw new Error("No readable text found. Scanned PDFs are pictures of pages, so they can't be read or listened to.");
+    const name=(r.title||'').trim()||file.name.replace(/\.[^.]+$/,'');
+    const b=addBook(name,(r.author||'').trim(),r.paras);
+    setStatus(`Added “${b.title}”. It is split into ${b.parts.length} daily parts.`);
+    showTab('today');toast(`“${b.title}” is ready`);
+  }catch(err){setStatus(err.message||'That file could not be opened.',true)}
+}
+const SAMPLE=[
+['h','Why small bites work'],
+['p','Most books are abandoned not because they are bad, but because they are large. A thick book on a shelf feels like a debt, and every day you skip adds interest.'],
+['p','A daily portion changes the question. Instead of asking whether you can finish the whole book, you ask whether you can read for ten minutes. The answer is almost always yes, and ten minutes a day adds up to a book every few weeks.'],
+['p','Small portions also help you remember. Your mind has a night to settle what it read, and the next day begins with a faint echo of the last.'],
+['h','Make the place easy'],
+['p','Pick one time and keep it. Reading right after coffee, or just before bed, hooks the habit to something you already do. The exact hour matters less than the repetition.'],
+['p','Then make the page comfortable. Adjust the text size until your eyes stop working. Add a little more space between lines, and a little more between paragraphs. Choose a background that suits the room: bright paper by day, a dim dark page at night.'],
+['p','Margins matter too. Short lines are easier to follow, so if your screen is wide, give the text more room on both sides.'],
+['h','Listening counts'],
+['p','Some days you do not have the patience to look at a page. Listen instead. A walk, a commute, or washing dishes can hold a chapter without any effort.'],
+['p','Reading and listening are not rivals. Switch between them whenever you like, because the goal is the story, and the story does not care how it reaches you.'],
+['p','That is the end of the sample. Add your own PDF or EPUB, choose how many minutes you want to read each day, and Slowpage will cut the book into daily parts.']
+].map(([t,x])=>({t,x}));
+
+/* ===================== Tabs & rendering ===================== */
+function showTab(name){
+  tab=name;
+  ['today','library','plan','settings'].forEach(t=>{$('#v-'+t).hidden=t!==name});
+  $$('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===name?'page':'false'));
+  window.scrollTo(0,0);
+  renderAll();
+}
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
+
+function streakCount(){
+  const set=new Set(books.flatMap(b=>b.log||[]));
+  const d=new Date();let n=0;
+  if(!set.has(d.toLocaleDateString('en-CA')))d.setDate(d.getDate()-1);
+  while(set.has(d.toLocaleDateString('en-CA'))){n++;d.setDate(d.getDate()-1)}
+  return n;
+}
+const colorFor=t=>{let h=0;for(const c of t)h=(h*31+c.charCodeAt(0))>>>0;return COLORS[h%COLORS.length]};
+const activeBook=()=>books.find(b=>b.id===activeId)||books[0];
+
+function renderToday(){
+  const st=streakCount(),chip=$('#streak');
+  chip.hidden=!st;chip.innerHTML=st?`${ico('flame','sm')}${st}-day streak`:'';
+  const wrap=$('#todayWrap'),b=activeBook();
+  if(!b){
+    wrap.innerHTML=`<div class="steps"><h2>Read a little, every day</h2><p>Slowpage cuts any book into short daily parts. Read them, or let your phone read them to you.</p>
+      <div class="step"><span class="sb">${ico('upload')}</span><div><b>1. Add a book</b><span>PDF, EPUB or a text file</span></div></div>
+      <div class="step"><span class="sb">${ico('clock')}</span><div><b>2. Pick your daily time</b><span>From 3 to 30 minutes</span></div></div>
+      <div class="step"><span class="sb">${ico('listen')}</span><div><b>3. Read or listen</b><span>Choose whichever suits your day</span></div></div>
+      <div class="stack"><button class="btn main wide" data-go="library">${ico('plus')} Add your first book</button>
+      <button class="btn quiet wide" id="sampleBtn2">${ico('sample')} Try a short sample</button></div></div>`;
+    return;
+  }
+  const n=b.parts.length,finished=b.current>=n,idx=Math.min(b.current,n-1),doneToday=b.lastDone===today();
+  const tiles=b.parts.map((_,i)=>`<button class="tile ${i<b.current?'done':''} ${i===b.current&&!finished?'now':''}" data-part="${i}" aria-label="Day ${i+1}"></button>`).join('');
+  let head,meta,peek='',btns;
+  const rd=(m,cls)=>`<button class="btn ${cls}" data-open="${idx}" data-mode="read">${ico('read')}Read${m||''}</button>`;
+  const ls=(m,cls)=>`<button class="btn ${cls}" data-open="${idx}" data-mode="listen">${ico('listen')}Listen${m||''}</button>`;
+  if(finished){
+    head='Book finished';meta=`You read all ${n} parts of “${esc(b.title)}”.`;
+    btns=`<button class="btn main" data-open="0" data-mode="read" style="grid-column:1/-1">${ico('read')}Read it again</button>`;
+  }else if(doneToday){
+    head='Today is done';meta=`${esc(b.title)} · next is day ${idx+1} of ${n}`;
+    btns=rd(' ahead','alt')+ls(' ahead','alt');
+  }else{
+    head=`Day ${idx+1} of ${n}`;
+    meta=`${esc(b.title)}${b.author?' · '+esc(b.author):''} · about ${partMin(b,idx)} min`;
+    const snip=b.paras.slice(b.parts[idx][0],b.parts[idx][1]).find(p=>p.t==='p');
+    peek=snip?`<p class="peek">${esc(snip.x.slice(0,110))}${snip.x.length>110?'…':''}</p>`:'';
+    btns=S.mode==='listen'?ls('','main')+rd('','alt'):rd('','main')+ls('','alt');
+  }
+  const rem=R.on?`<div class="remline">${ico('plan','sm')}Reminder every day at ${fmtTime(R.time)}</div>`
+    :`<div class="remline">${ico('plan','sm')}<button class="linkbtn" data-go="plan">Set a daily reminder</button></div>`;
+  wrap.innerHTML=`<div class="today"><h2>${head}</h2><p class="meta">${meta}</p>${peek}<div class="actions">${btns}</div>
+    <div class="strip-title">Your book, one tile per day. Tap a tile to jump to that day.</div>
+    <div class="strip ${n>90?'dense':''}">${tiles}</div>
+    <div class="legend"><span><i style="background:var(--acc)"></i>Read</span><span><i style="box-shadow:inset 0 0 0 2px var(--acc)"></i>Next</span><span><i style="background:rgba(255,255,255,.16)"></i>Later</span></div></div>${rem}`;
+}
+function renderLibrary(){
+  $('#lib').innerHTML=books.map(b=>{
+    const pct=Math.round(Math.min(b.current,b.parts.length)/b.parts.length*100),on=b.id===activeId;
+    return`<div class="bk ${on?'active':''}"><div class="top"><span class="spine" style="background:${colorFor(b.title)}"></span>
+      <div class="bt">${on?`<span class="badge">${ico('check','sm')}Reading now</span>`:''}<b>${esc(b.title)}</b>
+      <span>${b.author?esc(b.author)+' · ':''}${b.parts.length} days · ${pct}% read</span><div class="bar"><i style="width:${pct}%"></i></div></div></div>
+      <div class="acts">${on?'':`<button class="btn quiet" data-book="${b.id}">${ico('today','sm')}Read this one</button>`}
+      <button class="btn quiet" data-rm="${b.id}">${ico('trash','sm')}Remove</button></div></div>`;
+  }).join('')||`<p class="hint" style="text-align:center">Your books will appear here.</p>`;
+}
+function renderPlan(){
+  const b=activeBook();
+  $$('#minChips .chip').forEach(c=>c.setAttribute('aria-pressed',!!b&&b.target===+c.dataset.m*WPM));
+  $('#planHint').textContent=b?`“${b.title}” is cut into ${b.parts.length} daily ${b.parts.length===1?"part":"parts"}, based on a relaxed ${WPM} words per minute.`:'Add a book in the Library to plan it.';
+  $('#remOn').checked=R.on;$('#remTime').value=R.time;
+  $('#remHint').textContent=NATIVE?'Reminders arrive every day, even when the app is closed.'
+    :'Reminders show while Slowpage is open. To be reminded when it is closed, add the reminder to your calendar.';
+}
+function renderAll(){
+  if(tab==='today')renderToday();
+  if(tab==='library')renderLibrary();
+  if(tab==='plan')renderPlan();
+  if(tab==='settings')applyStyle();
+}
+
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g){showTab(g.dataset.go);return}
+  const o=e.target.closest('[data-open]');
+  if(o){openPart(activeBook(),+o.dataset.open,(o.dataset.mode||S.mode)==='listen');return}
+  const t=e.target.closest('[data-part]');
+  if(t){openPart(activeBook(),+t.dataset.part,S.mode==='listen');return}
+  const rm=e.target.closest('[data-rm]');
+  if(rm){
+    if(rm.dataset.sure){const id=rm.dataset.rm;books=books.filter(b=>b.id!==id);kv.del('book:'+id);if(activeId===id)activeId=books[0]?.id||null;saveMeta();renderAll()}
+    else{const old=rm.innerHTML;rm.dataset.sure=1;rm.textContent='Tap again to remove';setTimeout(()=>{if(rm.isConnected){rm.innerHTML=old;delete rm.dataset.sure}},3000)}
+    return;
+  }
+  const bk=e.target.closest('[data-book]');
+  if(bk){activeId=bk.dataset.book;saveMeta();toast('Set as your book for today');showTab('today')}
+  if(e.target.closest('#sampleBtn')||e.target.closest('#sampleBtn2'))addSample();
+});
+function addSample(){
+  addBook('The Slow Reader’s Handbook','Sample text',SAMPLE.map(p=>({...p})),90);
+  showTab('today');toast('Sample added');
+}
+$('#file').addEventListener('change',e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=''});
+$('#addLbl').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#file').click()}});
+
+/* ===================== Display controls (shared by Settings + reader) ===================== */
+function applyStyle(){
+  const themeEls=[$('#reader'),$('#pvWrap')];
+  themeEls.forEach(r=>{r.dataset.theme=S.theme;r.dataset.font=S.font});
+  [$('#page'),$('#preview')].forEach(p=>{
+    p.style.setProperty('--fs',S.fs+'px');p.style.setProperty('--lh',S.lh);
+    p.style.setProperty('--ps',S.ps);p.style.setProperty('--mx',S.mx+'px');p.style.setProperty('--al',S.align);
+    p.className='pg'+(S.border==='none'?'':' b-'+S.border);
+  });
+  $('#fsO').textContent=S.fs+' px';$('#lhO').textContent=S.lh.toFixed(2);
+  $('#psO').textContent=S.ps.toFixed(1)+' em';$('#mxO').textContent=S.mx+' px';
+  $('#fs').value=S.fs;$('#lh').value=S.lh;$('#ps').value=S.ps;$('#mx').value=S.mx;
+  $$('#swatches .sw').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.theme));
+  $$('#fontChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.font));
+  $$('#borderChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.border));
+  $$('#alignChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.align));
+  $$('#modeChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.mode));
+  $('#rateSel').value=S.rate;$('#spdTxt').textContent=S.rate+'×';
+}
+const saveSettings=()=>kv.set('settings',S);
+function chips(el,list,key){
+  el.innerHTML=list.map(([v,l,i])=>`<button class="chip" data-v="${v}" aria-pressed="false">${i?ico(i,'sm'):''}${l}</button>`).join('');
+  el.addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;S[key]=c.dataset.v;applyStyle();saveSettings();if(key==='mode')renderAll()});
+}
+const THEMES=[['paper','#FAFAF8','#23262D','Paper'],['sepia','#F0E4CB','#40301F','Sepia'],['mist','#DCE6DF','#1D2A24','Mist'],['dusk','#232B45','#D9DEF0','Dusk'],['night','#0D1014','#B4B9C4','Night']];
+$('#swatches').innerHTML=THEMES.map(([v,bg,ink,l])=>`<button class="sw" data-v="${v}" aria-pressed="false" style="background:${bg};color:${ink}"><b>Aa</b>${l}</button>`).join('');
+$('#swatches').addEventListener('click',e=>{const c=e.target.closest('.sw');if(!c)return;S.theme=c.dataset.v;applyStyle();saveSettings()});
+chips($('#fontChips'),[['serif','Serif'],['sans','Sans'],['mono','Mono']],'font');
+chips($('#borderChips'),[['none','None'],['line','Line'],['double','Double'],['round','Rounded']],'border');
+chips($('#alignChips'),[['left','Left'],['justify','Justified']],'align');
+chips($('#modeChips'),[['read','Read','read'],['listen','Listen','listen']],'mode');
+['fs','lh','ps','mx'].forEach(id=>$('#'+id).addEventListener('input',e=>{S[id]=parseFloat(e.target.value);applyStyle();saveSettings()}));
+$('#fsMinus').onclick=()=>{S.fs=Math.max(15,S.fs-1);applyStyle();saveSettings()};
+$('#fsPlus').onclick=()=>{S.fs=Math.min(36,S.fs+1);applyStyle();saveSettings()};
+$('#rateSel').innerHTML=SPEEDS.map(v=>`<option value="${v}">${v}×${v===1?' (normal)':''}</option>`).join('');
+$('#rateSel').addEventListener('change',e=>{S.rate=parseFloat(e.target.value);applyStyle();saveSettings()});
+$('#spdBtn').onclick=()=>{const i=SPEEDS.indexOf(S.rate);S.rate=SPEEDS[(i+1)%SPEEDS.length];applyStyle();saveSettings();toast(`Speed ${S.rate}×`)};
+
+/* Move the same controls into the reader's sheet and back */
+const openSheet=()=>{$('#sheetBody').appendChild($('#displayControls'));$('#displaySheet').classList.add('open');$('#scrimR').classList.add('open')};
+const closeSheet=()=>{$('#displaySheet').classList.remove('open');$('#scrimR').classList.remove('open')};
+function homeControls(){$('#ctrlHome').appendChild($('#displayControls'))}
+$('#aaBtn').onclick=openSheet;$('#scrimR').onclick=closeSheet;$('#closeSheet').onclick=closeSheet;
+
+/* ===================== Reader ===================== */
+function openPart(b,i,listen){
+  if(!b)return;
+  stopAudio();
+  cur=b;curPart=i;activeId=b.id;saveMeta();
+  const[s,e]=b.parts[i],page=$('#page');
+  page.innerHTML='';
+  for(let k=s;k<e;k++){
+    const p=b.paras[k],el=document.createElement(p.t==='h'?'h2':'p');
+    el.textContent=p.x;el.dataset.i=k;page.appendChild(el);
+  }
+  const last=i>=b.parts.length-1;
+  const end=document.createElement('div');end.className='endcard';
+  end.innerHTML=`<p>${last?'That is the end of the book.':'That is today’s bite.'}</p><button class="btn" id="doneBtn">${ico('check')}${last?'Finish book':'Mark as read'}</button>`;
+  page.appendChild(end);
+  $('#rTitle').textContent=b.title;
+  $('#rSub').textContent=`Day ${i+1} of ${b.parts.length} · about ${partMin(b,i)} min`;
+  $('#views').hidden=true;$('#tabs').hidden=true;$('#reader').hidden=false;
+  $('#scroll').scrollTop=0;$('#progBar').style.width='0';
+  applyStyle();updateAudioUI();
+  if(listen)startAudio(s);
+}
+$('#page').addEventListener('click',e=>{
+  if(e.target.closest('#doneBtn')){markDone(true);return}
+  const el=e.target.closest('[data-i]');
+  if(el&&TTS.playing)startAudio(+el.dataset.i);
+});
+$('#scroll').addEventListener('scroll',()=>{
+  const s=$('#scroll'),m=s.scrollHeight-s.clientHeight;
+  $('#progBar').style.width=(m>0?Math.min(100,s.scrollTop/m*100):100)+'%';
+});
+let warnAt=0;
+$('#doneTop').onclick=()=>{
+  const s=$('#scroll'),m=s.scrollHeight-s.clientHeight,near=m<=0||s.scrollTop/m>0.9;
+  if(near||Date.now()-warnAt<4000){markDone(true);return}
+  warnAt=Date.now();toast('You are not at the end yet. Tap Done again to mark it read anyway.');
+};
+function markDone(){
+  const b=cur;if(!b)return;
+  b.current=Math.max(b.current,curPart+1);
+  const t=today();if(!b.log.includes(t))b.log.push(t);
+  b.lastDone=t;saveBook(b);
+  closeReader();
+  toast(b.current>=b.parts.length?'Book finished. Well done!':`Day ${curPart+1} done. See you tomorrow!`);
+}
+function closeReader(){
+  stopAudio();closeSheet();homeControls();
+  $('#reader').hidden=true;$('#views').hidden=false;$('#tabs').hidden=false;
+  showTab('today');
+}
+$('#backBtn').onclick=closeReader;
+
+/* ===================== Audio ===================== */
+const TTS={token:0,playing:false,paused:false,idx:0};
+const synth=window.speechSynthesis;
+let voices=[];
+function loadVoices(){
+  if(!synth)return;
+  voices=synth.getVoices();
+  const sel=$('#voice');
+  sel.innerHTML=voices.map(v=>`<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('')||'<option value="">Default voice</option>';
+  if(S.voice&&voices.some(v=>v.voiceURI===S.voice))sel.value=S.voice;
+}
+if(synth){loadVoices();synth.onvoiceschanged=loadVoices}
+$('#voice').addEventListener('change',e=>{S.voice=e.target.value;saveSettings()});
+function utter(text){
+  const u=new SpeechSynthesisUtterance(text);u.rate=S.rate;
+  const v=voices.find(v=>v.voiceURI===S.voice);if(v){u.voice=v;u.lang=v.lang}
+  return u;
+}
+$('#testVoice').onclick=()=>{
+  if(!synth){toast('This device cannot speak text aloud.');return}
+  synth.cancel();synth.speak(utter('This is how your book will sound.'));
+};
+function chunkText(t){
+  const sents=t.match(/[^.!?]+[.!?]+["”')\]]*\s*|[^.!?]+$/g)||[t];
+  const out=[];let buf='';
+  for(const s of sents){if((buf+s).length>220&&buf){out.push(buf);buf=s}else buf+=s}
+  if(buf.trim())out.push(buf);return out;
+}
+function highlight(i){
+  $$('#page .speaking').forEach(e=>e.classList.remove('speaking'));
+  const el=document.querySelector(`#page [data-i="${i}"]`);
+  if(el){el.classList.add('speaking');el.scrollIntoView({block:'center',behavior:'smooth'})}
+}
+function startAudio(i){
+  if(!synth){toast('This device cannot speak text aloud.');return}
+  synth.cancel();
+  TTS.playing=true;TTS.paused=false;TTS.idx=i;speakPara();updateAudioUI();
+}
+function speakPara(){
+  const tk=++TTS.token,[s,e]=cur.parts[curPart];
+  if(TTS.idx>=e){
+    TTS.playing=false;updateAudioUI();
+    $$('#page .speaking').forEach(x=>x.classList.remove('speaking'));
+    $('#doneBtn')?.scrollIntoView({block:'center',behavior:'smooth'});
+    toast('Finished listening. Tap “Mark as read” when ready.');return;
+  }
+  highlight(TTS.idx);
+  const chunks=chunkText(cur.paras[TTS.idx].x);let n=0;
+  const next=()=>{
+    if(tk!==TTS.token)return;
+    if(n>=chunks.length){TTS.idx++;speakPara();return}
+    const u=utter(chunks[n++]);
+    u.onend=next;
+    u.onerror=ev=>{if(tk===TTS.token&&ev.error!=='interrupted'&&ev.error!=='canceled')next()};
+    synth.speak(u);
+  };
+  next();
+}
+function stopAudio(){TTS.token++;TTS.playing=false;TTS.paused=false;if(synth)synth.cancel();$$('#page .speaking').forEach(x=>x.classList.remove('speaking'));updateAudioUI()}
+function updateAudioUI(){
+  const on=TTS.playing&&!TTS.paused;
+  $('#playIc').innerHTML=ico(on?'pause':'play','lg fill');
+  $('#playLbl').textContent=on?'Pause':(TTS.paused?'Resume':'Listen');
+  $('#audioInfo').textContent=TTS.playing?(TTS.paused?'Paused':'Reading aloud…'):'Tap Listen to hear this part read aloud';
+}
+$('#playBtn').onclick=()=>{
+  if(!cur)return;
+  if(!TTS.playing){startAudio(cur.parts[curPart][0]);return}
+  if(TTS.paused){synth.resume();TTS.paused=false}else{synth.pause();TTS.paused=true}
+  updateAudioUI();
+};
+$('#nextP').onclick=()=>{if(!cur)return;const[s,e]=cur.parts[curPart];startAudio(Math.min(e-1,(TTS.playing?TTS.idx:s-1)+1))};
+$('#prevP').onclick=()=>{if(!cur)return;const[s]=cur.parts[curPart];startAudio(Math.max(s,(TTS.playing?TTS.idx:s)-1))};
+
+/* ===================== Plan + reminders ===================== */
+const MINS=[3,5,10,15,20,30];
+$('#minChips').innerHTML=MINS.map(m=>`<button class="chip" data-m="${m}" aria-pressed="false">${m} min</button>`).join('');
+$('#minChips').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'),b=activeBook();if(!c)return;
+  if(!b){toast('Add a book first');return}
+  replan(b,+c.dataset.m*WPM);renderPlan();toast(`${b.parts.length} daily parts`);
+});
+async function scheduleNative(){
+  const ln=LN();if(!NATIVE||!ln)return;
+  try{
+    await ln.cancel({notifications:[{id:1}]});
+    if(!R.on)return;
+    const p=await ln.requestPermissions();
+    if(p.display!=='granted'){toast('Allow notifications to get reminders');return}
+    const[h,m]=R.time.split(':').map(Number);
+    await ln.schedule({notifications:[{id:1,title:'Your daily bite is ready',
+      body:'Open Slowpage to read or listen to today’s part.',schedule:{on:{hour:h,minute:m},allowWhileIdle:true}}]});
+  }catch(e){}
+}
+$('#remTime').addEventListener('change',e=>{R.time=e.target.value||'08:00';kv.set('reminder',R);scheduleNative()});
+$('#remOn').addEventListener('change',async e=>{
+  R.on=e.target.checked;kv.set('reminder',R);
+  if(NATIVE){await scheduleNative()}
+  else if(R.on&&'Notification' in window&&Notification.permission==='default'){try{await Notification.requestPermission()}catch(err){}}
+  if(R.on)toast(`Reminder set for ${fmtTime(R.time)}`);
+});
+function fireReminder(){
+  const b=activeBook();if(!b||b.current>=b.parts.length)return;
+  const i=b.current;
+  const body=`${b.title} · day ${i+1} of ${b.parts.length} · about ${partMin(b,i)} min`;
+  try{
+    if('Notification' in window&&Notification.permission==='granted'){
+      const n=new Notification('Your daily bite is ready',{body});
+      n.onclick=()=>{window.focus();openPart(b,i,S.mode==='listen');n.close()};
+    }
+  }catch(e){}
+  toast('Your daily bite is ready.');
+}
+setInterval(()=>{
+  if(!R.on||NATIVE)return;
+  const now=new Date(),hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const b=activeBook();
+  if(hm===R.time&&R.last!==today()&&b&&b.lastDone!==today()){R.last=today();kv.set('reminder',R);fireReminder()}
+},15000);
+$('#icsBtn').onclick=()=>{
+  const b=activeBook(),[h,m]=R.time.split(':').map(Number),d=new Date(),p=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(h)}${p(m)}00`;
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Slowpage//EN','BEGIN:VEVENT',
+    'UID:slowpage-daily-'+Date.now()+'@slowpage','DTSTAMP:'+stamp,'DTSTART:'+stamp,'DURATION:PT15M','RRULE:FREQ=DAILY',
+    'SUMMARY:Today\'s reading bite'+(b?' - '+b.title.replace(/[,;\n]/g,' '):''),
+    'BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Read or listen to today\'s part','END:VALARM',
+    'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));
+  a.download='daily-reading.ics';document.body.appendChild(a);a.click();a.remove();
+  toast('Calendar reminder created');
+};
+
+/* ===================== Boot ===================== */
+(async function init(){
+  try{
+    const s=await kv.get('settings');if(s)S={...S,...s};
+    const r=await kv.get('reminder');if(r)R={...R,...r};
+    const meta=await kv.get('meta');
+    const keys=(await kv.keys()).filter(k=>String(k).startsWith('book:'));
+    for(const k of keys){const b=await kv.get(k);if(b)books.push(b)}
+    books.sort((a,b)=>a.added-b.added);
+    activeId=meta?.activeId&&books.some(b=>b.id===meta.activeId)?meta.activeId:books[0]?.id||null;
+  }catch(e){}
+  applyStyle();renderAll();
+  if(NATIVE&&R.on)scheduleNative();
+  if(!NATIVE&&'serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
