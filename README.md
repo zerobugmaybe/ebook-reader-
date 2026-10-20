@@ -1,4 +1,4 @@
-# Slowpage – build the Android APK
+# Slowpage 1.1 – build the Android APK
 
 Read or listen to any book in small daily parts. This folder is a ready-to-build Android app.
 
@@ -23,7 +23,7 @@ The APK appears in `android/app/build/outputs/apk/debug/app-debug.apk`.
 ## Compatibility
 - Works on Android 5.1 and newer (API 22+), on phones and tablets, 32-bit and 64-bit.
 - Needs "Android System WebView" (updated through Google Play). Very old, never-updated phones may show an old WebView; updating it fixes that.
-- PDF and EPUB readers are bundled in the app, so importing books works offline.
+- PDF and EPUB readers and a native text-to-speech voice are bundled, so importing books and listening work offline.
 
 ## Without an APK
 `www/index.html` also runs as an installable web app: host the `www` folder on any HTTPS site, open it in Chrome on your phone and choose **Add to Home screen**.

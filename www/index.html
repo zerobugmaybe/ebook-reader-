@@ -89,7 +89,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,label:focus-within
 .status{margin-top:14px;font-size:14px;color:var(--muted);min-height:20px;line-height:1.4}
 .status.err{color:var(--danger)}
 .addrow{display:grid;gap:10px;margin-top:4px}
-.addrow input{display:none}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;z-index:80;background:rgba(10,12,25,.6);display:grid;place-items:center;padding:24px}
+.modal .box{background:var(--surf);color:var(--ink);border-radius:22px;padding:24px 20px;max-width:420px;width:100%;text-align:center}
+.modal p{margin:12px 0 0;line-height:1.5;word-break:break-word}
+.spin{width:38px;height:38px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--acc);margin:0 auto;animation:spin 0.9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .fmt{font-size:13px;color:var(--muted);margin:4px 2px 0}
 
 /* ---------- Cards / rows (Plan + Settings) ---------- */
@@ -221,11 +226,9 @@ select,input[type=time]{width:100%;font:inherit;padding:12px;border-radius:12px;
   <section class="view" id="v-library" hidden>
     <div class="vhead"><h1>Library</h1></div>
     <div class="addrow">
-      <label class="btn main wide" tabindex="0" id="addLbl">
-        <svg class="ic"><use href="#i-upload"/></svg> Add a book from your phone
-        <input type="file" id="file" accept=".pdf,.epub,.txt,.md,.html,.htm,application/pdf,application/epub+zip,text/plain">
-      </label>
-      <p class="fmt">Works with PDF, EPUB, TXT, MD and HTML files.</p>
+      <button class="btn main wide" id="addBtn"><svg class="ic"><use href="#i-upload"/></svg> Add a book from your phone</button>
+      <input type="file" id="file" class="vh" aria-label="Choose a book file">
+      <p class="fmt">Works with PDF, EPUB, TXT, MD and HTML files. Pick the file from Downloads or any folder.</p>
       <button class="btn quiet wide" id="sampleBtn"><svg class="ic"><use href="#i-sample"/></svg> Try a short sample book</button>
     </div>
     <div class="status" id="status" role="status"></div>
@@ -278,11 +281,14 @@ select,input[type=time]{width:100%;font:inherit;padding:12px;border-radius:12px;
     </div>
     <div class="card">
       <h2><svg class="ic"><use href="#i-voice"/></svg>Listening</h2>
-      <div class="row"><div class="lbl"><label for="voice" class="lt">Voice</label></div><select id="voice"></select>
+      <div class="row"><div class="lbl"><label for="langSel" class="lt">Book language</label></div><select id="langSel"></select>
+        <p class="hint">Pick the language your book is written in so it is read out correctly.</p></div>
+      <div class="row" id="voiceRow"><div class="lbl"><label for="voice" class="lt">Voice</label></div><select id="voice"></select>
         <p class="hint">Voices come from your phone. Add more in your phone's language or text-to-speech settings.</p></div>
       <div class="row"><div class="lbl"><label for="rateSel" class="lt">Speaking speed</label></div><select id="rateSel"></select></div>
       <div class="row"><button class="btn quiet wide" id="testVoice"><svg class="ic"><use href="#i-play"/></svg> Test the voice</button></div>
     </div>
+    <p class="hint" style="text-align:center">Slowpage version 1.1</p>
   </section>
 </main>
 
@@ -319,6 +325,10 @@ select,input[type=time]{width:100%;font:inherit;padding:12px;border-radius:12px;
   </div>
 </section>
 
+<div class="modal" id="busy" hidden role="alertdialog" aria-live="polite">
+  <div class="box"><div class="spin" id="busySpin"></div><p id="busyMsg"></p>
+    <div class="stack"><button class="btn main wide" id="busyClose" hidden>Close</button></div></div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -368,7 +378,7 @@ const $$=s=>[...document.querySelectorAll(s)];
 const WPM=200;
 const COLORS=['#F2B134','#6E9A86','#7C8BD6','#D98FA8','#5FA8C9'];
 const SPEEDS=[0.7,0.85,1,1.15,1.3,1.5,1.75];
-let S={theme:'paper',font:'serif',fs:21,lh:1.7,ps:0.9,mx:28,border:'none',align:'left',rate:1,voice:'',mode:'read'};
+let S={lang:'en-US',theme:'paper',font:'serif',fs:21,lh:1.7,ps:0.9,mx:28,border:'none',align:'left',rate:1,voice:'',mode:'read'};
 let R={on:false,time:'08:00',last:''};
 let books=[],activeId=null,cur=null,curPart=0,tab='today';
 const today=()=>new Date().toLocaleDateString('en-CA');
@@ -378,7 +388,14 @@ const ico=(n,c='')=>`<svg class="ic ${c}" aria-hidden="true"><use href="#i-${n}"
 const fmtTime=hm=>{const[h,m]=hm.split(':').map(Number);return new Date(2000,0,1,h,m).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})};
 let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3000)}
-function setStatus(m,err){const s=$('#status');s.textContent=m||'';s.classList.toggle('err',!!err)}
+function setStatus(m,err){const s=$('#status');s.textContent=m||'';s.classList.toggle('err',!!err);if(!$('#busy').hidden&&!err&&m)$('#busyMsg').textContent=m}
+function busy(m){$('#busy').hidden=false;$('#busySpin').hidden=false;$('#busyClose').hidden=true;$('#busyMsg').textContent=m}
+function busyFail(m){$('#busy').hidden=false;$('#busySpin').hidden=true;$('#busyClose').hidden=false;$('#busyMsg').textContent=m}
+function busyDone(){$('#busy').hidden=true}
+$('#busyClose').onclick=busyDone;
+window.addEventListener('error',e=>{if(!$('#busy').hidden)busyFail('Something went wrong: '+(e.message||'unknown error'))});
+window.addEventListener('unhandledrejection',e=>{if(!$('#busy').hidden)busyFail('Something went wrong: '+((e.reason&&e.reason.message)||e.reason))});
+const withTimeout=(p,ms,msg)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(msg)),ms))]);
 const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 const LN=()=>window.Capacitor?.Plugins?.LocalNotifications;
 
@@ -450,15 +467,35 @@ const PDF_JS=['lib/pdf.min.js',CDN+'pdf.js/3.11.174/pdf.min.js'];
 const PDF_WORKER=['lib/pdf.worker.min.js',CDN+'pdf.js/3.11.174/pdf.worker.min.js'];
 const ZIP_JS=['lib/jszip.min.js',CDN+'jszip/3.10.1/jszip.min.js'];
 
-async function parsePdf(buf){
+let blobWorker=null;
+async function openPdf(buf){
   await loadScript(PDF_JS);
-  let set=false;
-  for(const u of PDF_WORKER){
-    try{const code=await (await fetch(u)).text();if(code.length<1000)continue;
-      pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));set=true;break}catch(e){}
+  const GW=pdfjsLib.GlobalWorkerOptions;
+  const attempts=[
+    async()=>{
+      if(!blobWorker){
+        let code='';
+        for(const u of PDF_WORKER){try{code=await (await fetch(u)).text();if(code.length>1000)break}catch(e){}}
+        if(code.length<1000)throw new Error('worker not found');
+        blobWorker=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+      }
+      GW.workerSrc=blobWorker;
+    },
+    async()=>{GW.workerSrc=PDF_WORKER[0]},
+    async()=>{GW.workerSrc=PDF_WORKER[PDF_WORKER.length-1]}
+  ];
+  let last;
+  for(const prep of attempts){
+    try{
+      await prep();
+      const task=pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))});
+      return await withTimeout(task.promise,40000,'The PDF took too long to open.');
+    }catch(e){last=e}
   }
-  if(!set)pdfjsLib.GlobalWorkerOptions.workerSrc=PDF_WORKER[PDF_WORKER.length-1];
-  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  throw last||new Error('The PDF could not be opened.');
+}
+async function parsePdf(buf){
+  const pdf=await openPdf(buf);
   let meta={};try{meta=(await pdf.getMetadata()).info||{}}catch(e){}
   const paras=[];let carry='';
   const med=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)]};
@@ -541,21 +578,35 @@ function parseText(txt,ext){
     .map(x=>({t:(headingLike(x)||/^#{1,3}\s/.test(x))?'h':'p',x:x.replace(/^#{1,3}\s+/,'')}));
   return{paras};
 }
+function sniff(buf,name){
+  const u=new Uint8Array(buf.slice(0,1024));
+  let head='';for(let i=0;i<u.length;i++)head+=String.fromCharCode(u[i]);
+  if(head.includes('%PDF-'))return 'pdf';
+  if(u[0]===0x50&&u[1]===0x4B)return 'epub';
+  if(u.includes(0))return 'binary';
+  const ext=(name.split('.').pop()||'').toLowerCase();
+  return (ext==='html'||ext==='htm')?ext:'txt';
+}
 async function importFile(file){
-  setStatus(`Opening ${file.name}…`);
+  busy(`Opening “${file.name}”…`);
   try{
-    const ext=file.name.split('.').pop().toLowerCase();
     const buf=await file.arrayBuffer();
+    if(!buf.byteLength)throw new Error('That file is empty.');
+    const kind=sniff(buf,file.name);
     let r;
-    if(ext==='pdf')r=await parsePdf(buf);
-    else if(ext==='epub')r=await parseEpub(buf);
-    else r=parseText(new TextDecoder().decode(buf),ext);
+    if(kind==='pdf')r=await parsePdf(buf);
+    else if(kind==='epub')r=await parseEpub(buf);
+    else if(kind==='binary')throw new Error('Slowpage cannot open this kind of file. Please choose a PDF, EPUB or text file.');
+    else r=parseText(new TextDecoder().decode(buf),kind);
     if(!r.paras.length)throw new Error("No readable text found. Scanned PDFs are pictures of pages, so they can't be read or listened to.");
     const name=(r.title||'').trim()||file.name.replace(/\.[^.]+$/,'');
     const b=addBook(name,(r.author||'').trim(),r.paras);
-    setStatus(`Added “${b.title}”. It is split into ${b.parts.length} daily parts.`);
-    showTab('today');toast(`“${b.title}” is ready`);
-  }catch(err){setStatus(err.message||'That file could not be opened.',true)}
+    busyDone();setStatus(`Added “${b.title}”. It is split into ${b.parts.length} daily parts.`);
+    showTab('today');toast(`“${b.title}” is ready. Tap Read to start.`);
+  }catch(err){
+    busyFail((err&&err.message)||'That file could not be opened.');
+    setStatus('',false);
+  }
 }
 const SAMPLE=[
 ['h','Why small bites work'],
@@ -676,7 +727,7 @@ function addSample(){
   showTab('today');toast('Sample added');
 }
 $('#file').addEventListener('change',e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=''});
-$('#addLbl').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#file').click()}});
+$('#addBtn').onclick=()=>$('#file').click();
 
 /* ===================== Display controls (shared by Settings + reader) ===================== */
 function applyStyle(){
@@ -695,7 +746,7 @@ function applyStyle(){
   $$('#borderChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.border));
   $$('#alignChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.align));
   $$('#modeChips .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.mode));
-  $('#rateSel').value=S.rate;$('#spdTxt').textContent=S.rate+'×';
+  $('#rateSel').value=S.rate;$('#langSel').value=S.lang;$('#voiceRow').hidden=NATIVE;$('#spdTxt').textContent=S.rate+'×';
 }
 const saveSettings=()=>kv.set('settings',S);
 function chips(el,list,key){
@@ -712,6 +763,9 @@ chips($('#modeChips'),[['read','Read','read'],['listen','Listen','listen']],'mod
 ['fs','lh','ps','mx'].forEach(id=>$('#'+id).addEventListener('input',e=>{S[id]=parseFloat(e.target.value);applyStyle();saveSettings()}));
 $('#fsMinus').onclick=()=>{S.fs=Math.max(15,S.fs-1);applyStyle();saveSettings()};
 $('#fsPlus').onclick=()=>{S.fs=Math.min(36,S.fs+1);applyStyle();saveSettings()};
+const LANGS=[['en-US','English (US)'],['en-GB','English (UK)'],['en-IN','English (India)'],['hi-IN','Hindi'],['te-IN','Telugu'],['ta-IN','Tamil'],['es-ES','Spanish'],['fr-FR','French'],['de-DE','German']];
+$('#langSel').innerHTML=LANGS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+$('#langSel').addEventListener('change',e=>{S.lang=e.target.value;saveSettings()});
 $('#rateSel').innerHTML=SPEEDS.map(v=>`<option value="${v}">${v}×${v===1?' (normal)':''}</option>`).join('');
 $('#rateSel').addEventListener('change',e=>{S.rate=parseFloat(e.target.value);applyStyle();saveSettings()});
 $('#spdBtn').onclick=()=>{const i=SPEEDS.indexOf(S.rate);S.rate=SPEEDS[(i+1)%SPEEDS.length];applyStyle();saveSettings();toast(`Speed ${S.rate}×`)};
@@ -789,12 +843,36 @@ if(synth){loadVoices();synth.onvoiceschanged=loadVoices}
 $('#voice').addEventListener('change',e=>{S.voice=e.target.value;saveSettings()});
 function utter(text){
   const u=new SpeechSynthesisUtterance(text);u.rate=S.rate;
-  const v=voices.find(v=>v.voiceURI===S.voice);if(v){u.voice=v;u.lang=v.lang}
+  const v=voices.find(v=>v.voiceURI===S.voice);if(v){u.voice=v;u.lang=v.lang}else u.lang=S.lang;
   return u;
 }
+const TN=()=>NATIVE?(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.TextToSpeech):null;
+let nativeOK=true;
+function webSpeak(text,tk,done,fail){
+  if(!synth){fail();return}
+  const u=utter(text);
+  u.onend=()=>{if(tk===TTS.token)done()};
+  u.onerror=ev=>{if(tk===TTS.token&&ev.error!=='interrupted'&&ev.error!=='canceled')done()};
+  synth.speak(u);
+}
+function speakChunk(text,tk,done,fail){
+  const tn=TN();
+  if(tn&&nativeOK){
+    tn.speak({text,lang:S.lang,rate:S.rate,pitch:1,volume:1,category:'playback'})
+      .then(()=>{if(tk===TTS.token)done()})
+      .catch(()=>{if(tk!==TTS.token)return;nativeOK=false;webSpeak(text,tk,done,fail)});
+    return;
+  }
+  webSpeak(text,tk,done,fail);
+}
+function haltSpeech(){
+  if(synth)synth.cancel();
+  const tn=TN();if(tn&&nativeOK){try{tn.stop().catch(()=>{})}catch(e){}}
+}
 $('#testVoice').onclick=()=>{
-  if(!synth){toast('This device cannot speak text aloud.');return}
-  synth.cancel();synth.speak(utter('This is how your book will sound.'));
+  if(!synth&&!TN()){toast('This phone cannot speak text aloud.');return}
+  TTS.token++;haltSpeech();
+  speakChunk('This is how your book will sound.',TTS.token,()=>{},()=>toast('This phone could not speak the text.'));
 };
 function chunkText(t){
   const sents=t.match(/[^.!?]+[.!?]+["”')\]]*\s*|[^.!?]+$/g)||[t];
@@ -808,8 +886,8 @@ function highlight(i){
   if(el){el.classList.add('speaking');el.scrollIntoView({block:'center',behavior:'smooth'})}
 }
 function startAudio(i){
-  if(!synth){toast('This device cannot speak text aloud.');return}
-  synth.cancel();
+  if(!synth&&!TN()){toast('This phone cannot speak text aloud.');return}
+  TTS.token++;haltSpeech();
   TTS.playing=true;TTS.paused=false;TTS.idx=i;speakPara();updateAudioUI();
 }
 function speakPara(){
@@ -825,14 +903,11 @@ function speakPara(){
   const next=()=>{
     if(tk!==TTS.token)return;
     if(n>=chunks.length){TTS.idx++;speakPara();return}
-    const u=utter(chunks[n++]);
-    u.onend=next;
-    u.onerror=ev=>{if(tk===TTS.token&&ev.error!=='interrupted'&&ev.error!=='canceled')next()};
-    synth.speak(u);
+    speakChunk(chunks[n++],tk,next,()=>{toast('This phone could not speak the text.');stopAudio()});
   };
   next();
 }
-function stopAudio(){TTS.token++;TTS.playing=false;TTS.paused=false;if(synth)synth.cancel();$$('#page .speaking').forEach(x=>x.classList.remove('speaking'));updateAudioUI()}
+function stopAudio(){TTS.token++;TTS.playing=false;TTS.paused=false;haltSpeech();$$('#page .speaking').forEach(x=>x.classList.remove('speaking'));updateAudioUI()}
 function updateAudioUI(){
   const on=TTS.playing&&!TTS.paused;
   $('#playIc').innerHTML=ico(on?'pause':'play','lg fill');
@@ -842,7 +917,11 @@ function updateAudioUI(){
 $('#playBtn').onclick=()=>{
   if(!cur)return;
   if(!TTS.playing){startAudio(cur.parts[curPart][0]);return}
-  if(TTS.paused){synth.resume();TTS.paused=false}else{synth.pause();TTS.paused=true}
+  if(TN()&&nativeOK){
+    if(TTS.paused){TTS.paused=false;speakPara()}
+    else{TTS.token++;haltSpeech();TTS.paused=true}
+  }else if(TTS.paused){synth.resume();TTS.paused=false}
+  else{synth.pause();TTS.paused=true}
   updateAudioUI();
 };
 $('#nextP').onclick=()=>{if(!cur)return;const[s,e]=cur.parts[curPart];startAudio(Math.min(e-1,(TTS.playing?TTS.idx:s-1)+1))};
